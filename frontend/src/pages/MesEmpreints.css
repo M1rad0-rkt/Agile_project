@@ -1,0 +1,232 @@
+.borrows-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #18181b;
+}
+
+.borrows-header h1 {
+    color:black;
+  font-size: 1.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.borrows-header p {
+  color: #71717a;
+  margin-bottom: 1.5rem;
+}
+
+/* Résumé rapide */
+.borrows-summary {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  flex: 1;
+  background: #f4f4f5;
+  padding: 1rem;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border: 1px solid #e4e4e7;
+}
+
+.summary-card--warning {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.summary-card__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.summary-card__label {
+  font-size: 0.85rem;
+  color: #71717a;
+}
+
+.summary-card--warning .summary-card__label {
+  color: #991b1b;
+}
+
+/* Onglets de filtrage */
+.borrows-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 1px solid #e4e4e7;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+  color: #71717a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+.tab-btn.active {
+  background: #2563eb;
+  color: white;
+}
+
+/* Liste des cartes d'emprunt */
+.borrows-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.borrow-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: white;
+  border: 1px solid #e4e4e7;
+  border-radius: 14px;
+  transition: box-shadow 0.2s;
+}
+
+.borrow-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.borrow-card--late {
+  border-color: #fca5a5;
+  background: #fff5f5;
+}
+
+.borrow-card__cover {
+  width: 56px;
+  height: 56px;
+  background: #eff6ff;
+  color: #2563eb;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.borrow-card__info {
+  flex: 1;
+}
+
+.borrow-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.borrow-card__header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.borrow-card__author {
+  margin: 0.25rem 0 0.75rem 0;
+  color: #71717a;
+  font-size: 0.9rem;
+}
+
+.borrow-card__dates {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: #52525b;
+}
+
+.date-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.text-danger {
+  color: #dc2626;
+}
+
+/* Badges de statut */
+.status-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+}
+
+.status--success {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status--warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status--danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.status--gray {
+  background: #f4f4f5;
+  color: #71717a;
+}
+
+/* Actions */
+.borrow-card__actions {
+  display: flex;
+  align-items: center;
+}
+
+.extend-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: white;
+  border: 1px solid #d4d4d8;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #27272a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.extend-btn:hover:not(:disabled) {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+.extend-btn:disabled {
+  background: #f4f4f5;
+  color: #a1a1aa;
+  cursor: not-allowed;
+  border-color: #e4e4e7;
+}
+
+.no-borrows {
+  text-align: center;
+  padding: 3rem;
+  background: #f4f4f5;
+  border-radius: 12px;
+  color: #71717a;
+}

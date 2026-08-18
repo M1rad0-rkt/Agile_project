@@ -1,0 +1,181 @@
+.catalog-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #0c0303;
+}
+
+.catalog-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color:black
+}
+
+.catalog-header p {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+/* Contrôles (Recherche & Filtres) */
+.catalog-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: #f4f4f5;
+  padding: 0.75rem 1.2rem;
+  border-radius: 12px;
+  max-width: 500px;
+  border: 1px solid #e4e4e7;
+}
+
+.search-bar input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.search-bar svg {
+  color: #71717a;
+}
+
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.category-chip {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  border: 1px solid #e4e4e7;
+  background: white;
+  color: #52525b;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.category-chip:hover {
+  background: #f4f4f5;
+}
+
+.category-chip.active {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* Grille des livres */
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.book-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.book-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06);
+}
+
+.book-card__cover {
+  height: 140px;
+  background: #fef08a; /* Couleur de fond sympa pour la couverture */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ca8a04;
+}
+
+.book-card__cover svg {
+  width: 48px;
+  height: 48px;
+}
+
+.book-card__content {
+  padding: 1.2rem;
+}
+
+.book-card__category {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.book-card__title {
+  margin: 0.5rem 0 0.25rem 0;
+  font-size: 1.1rem;
+}
+
+.book-card__author {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem 0;
+}
+
+.book-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-badge {
+  font-size: 0.8rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.status--available {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status--unavailable {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.action-btn {
+  background: #18181b;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.action-btn:disabled {
+  background: #e4e4e7;
+  color: #a1a1aa;
+  cursor: not-allowed;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 4rem;
+  color: #71717a;
+  background: #f4f4f5;
+  border-radius: 16px;
+}
