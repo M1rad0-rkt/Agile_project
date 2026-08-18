@@ -1,0 +1,146 @@
+/* SIDEBAR DE BASE ADMIN */
+.admin-sidebar {
+  width: 260px;
+  background-color: #0f172a; /* Slate 900 */
+  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1rem;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ÉTAT RÉDUIT */
+.admin-sidebar--collapsed {
+  width: 80px;
+  padding: 1.25rem 0.75rem;
+}
+
+/* EN-TÊTE */
+.admin-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.admin-sidebar--collapsed .admin-sidebar__header {
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.admin-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-sidebar__badge {
+  background: #6366f1; /* Accent violet pour l'admin */
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.admin-sidebar__title {
+  font-weight: 700;
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+/* BOUTON DÉPLIER / REPLIER */
+.admin-sidebar__toggle {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: #94a3b8;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-sidebar__toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* LIENS NAVIGATION */
+.admin-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1; /* Pousse le bouton de déconnexion tout en bas */
+}
+
+.admin-sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  color: #94a3b8;
+  text-decoration: none;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.admin-sidebar--collapsed .admin-sidebar__link {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.admin-sidebar__link:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+}
+
+.admin-sidebar__link--active {
+  background: #4f46e5; /* Indigo Admin */
+  color: white;
+}
+
+.admin-sidebar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* BOUTON DÉCONNEXION EN BAS */
+.admin-sidebar__logout {
+  margin-top: auto; /* Ancre le bouton tout en bas de la sidebar Flexbox */
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  background: rgba(225, 29, 72, 0.1);
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  color: #fb7185;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.admin-sidebar--collapsed .admin-sidebar__logout {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.admin-sidebar__logout:hover {
+  background: rgba(225, 29, 72, 0.2);
+  color: white;
+}
