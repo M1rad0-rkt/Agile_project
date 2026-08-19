@@ -430,6 +430,16 @@ Documentation :
 
 # 12. État actuel du projet
 
+User dispo :
+    membre : 
+    - email:myemail@gmail.com
+    - mdp:string
+    admin :
+    - admin@admin.com
+    - mdp:admin
+
+# 13. État actuel du projet
+
 Fonctionnel :
 
 - FastAPI
