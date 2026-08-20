@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
 from app.models import Admin, Membre, Livre, Emprunt
@@ -14,11 +15,24 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Gestion Bibliothèque API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # React avec Vite
+        "http://localhost:3000",  # React avec Create React App
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(livre_router)
 app.include_router(membre_router)
 app.include_router(emprunt_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+
+
 
 @app.on_event("startup")
 def startup():
