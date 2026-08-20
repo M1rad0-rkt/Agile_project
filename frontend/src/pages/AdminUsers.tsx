@@ -1396,13 +1396,6 @@ export default function AdminUsers() {
                     Rôle
                   </th>
 
-                  <th>
-                    Mot de passe
-                  </th>
-
-                  <th>
-                    Statut
-                  </th>
 
                   <th className="text-right">
                     Actions
@@ -1477,75 +1470,7 @@ export default function AdminUsers() {
                         </td>
 
 
-                        {/* MOT DE PASSE */}
 
-                        <td>
-
-                          <div className="password-cell">
-
-                            <span className="password-text">
-
-                              ••••••••••
-
-                            </span>
-
-
-                            <button
-
-                              type="button"
-
-                              className="btn-eye"
-
-                              onClick={() =>
-                                toggleShowPassword(
-                                  user.id
-                                )
-                              }
-
-                              title={
-                                showPasswordMap[
-                                  user.id
-                                ]
-                                  ? "Masquer"
-                                  : "Afficher"
-                              }
-
-                            >
-
-                              {showPasswordMap[
-                                user.id
-                              ]
-
-                                ? (
-                                  <EyeOffIcon />
-                                )
-
-                                : (
-                                  <EyeIcon />
-                                )
-
-                              }
-
-                            </button>
-
-                          </div>
-
-                        </td>
-
-
-                        {/* STATUT */}
-
-                        <td>
-
-                          <span
-                            className={`status-badge status-badge--${user.status.toLowerCase()}`}
-                          >
-
-                            {user.status}
-
-                          </span>
-
-                        </td>
 
 
                         {/* ACTIONS */}
