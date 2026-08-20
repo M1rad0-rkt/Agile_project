@@ -225,6 +225,13 @@
 .btn-icon--key:hover {
   background-color: #fffbee;
 }
+.btn-icon--edit {
+  color: #2563eb;
+}
+
+.btn-icon--edit:hover {
+  background-color: #eff6ff;
+}
 
 .btn-icon--delete {
   color: #dc2626;

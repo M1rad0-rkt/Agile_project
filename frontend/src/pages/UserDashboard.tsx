@@ -2,8 +2,6 @@ import "./UserDashboard.css";
 import { useNavigate } from "react-router-dom";
 
 
-
-
 // 1. Les icônes sont maintenant des composants fonctionnels (ajout de () => )
 const BookIcon = () => (
   <svg

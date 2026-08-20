@@ -11,11 +11,11 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/bibliotheque
 
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
     volumes:
       - ./backend:/app
-
 
   db:
     image: postgres:16
@@ -26,10 +26,15 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: bibliotheque
 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-
 
 volumes:
   postgres_data:

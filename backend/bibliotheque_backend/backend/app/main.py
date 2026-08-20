@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware 
 
 from app.database import Base, engine
 from app.models import Admin, Membre, Livre, Emprunt
@@ -13,6 +14,19 @@ from app.crud.admin import create_default_admin
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Gestion Bibliothèque API")
+
+
+# Connection au frontend vite 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",  # Vite (par défaut)
+        "http://localhost:3000",  # Create React App (par défaut)
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(livre_router)
 app.include_router(membre_router)

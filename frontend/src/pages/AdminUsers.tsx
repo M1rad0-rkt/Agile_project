@@ -1,18 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./AdminUsers.css";
 
-// Interface Utilisateur
-export interface User {
-  id: number;
-  fullName: string;
+export interface Membre {
+  id_membre: number;
+  nom: string;
+  prenom: string;
   email: string;
-  role: "Adhérent" | "Bibliothécaire" | "Admin";
-  password: string; // Mot de passe attribué par l'admin
-  status: "Actif" | "Inactif";
-  memberNumber: string;
+  date_inscription: string;
 }
 
-// --- ICÔNES SVG ---
+const API_URL = "http://localhost:8000";
+
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <circle cx="11" cy="11" r="8" />
@@ -27,12 +25,17 @@ const PlusIcon = () => (
   </svg>
 );
 
-const KeyIcon = () => (
+const CloseIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const EditIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <circle cx="7.5" cy="15.5" r="5.5" />
-    <path d="M11.5 11.5L20 3" />
-    <path d="M16 7l2 2" />
-    <path d="M18 5l2 2" />
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 );
 
@@ -43,28 +46,6 @@ const TrashIcon = () => (
   </svg>
 );
 
-const CloseIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-    <line x1="1" y1="1" x2="23" y2="23" />
-  </svg>
-);
-
-// Fonction utilitaire pour générer un mot de passe sécurisé
 const generateRandomPassword = () => {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
   let pass = "";
@@ -74,214 +55,256 @@ const generateRandomPassword = () => {
   return pass;
 };
 
-// Données initiales
-const INITIAL_USERS: User[] = [
-  { id: 1, fullName: "Alice Martin", email: "alice.martin@example.com", role: "Adhérent", password: "Password123!", status: "Actif", memberNumber: "BIB-2024-001" },
-  { id: 2, fullName: "Thomas Dubois", email: "thomas.dubois@example.com", role: "Adhérent", password: "SecurePass88!", status: "Actif", memberNumber: "BIB-2024-002" },
-  { id: 3, fullName: "Claire Bernard", email: "claire.b@example.com", role: "Bibliothécaire", password: "AdminPass2026!", status: "Actif", memberNumber: "STAFF-001" },
-  { id: 4, fullName: "Lucas Petit", email: "lucas.petit@example.com", role: "Adhérent", password: "MonMotDePasse99", status: "Inactif", memberNumber: "BIB-2024-003" },
-];
+const authHeaders = () => {
+  const token = localStorage.getItem("adminToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [membres, setMembres] = useState<Membre[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [roleFilter, setRoleFilter] = useState<string>("Tous");
-
-  // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState<boolean>(false);
-  const [selectedUserForPassword, setSelectedUserForPassword] = useState<User | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
-  // Formulaire Nouvel Utilisateur
-  const [newUser, setNewUser] = useState({
-    fullName: "",
+  const [newMembre, setNewMembre] = useState({
+    nom: "",
+    prenom: "",
     email: "",
-    role: "Adhérent" as "Adhérent" | "Bibliothécaire" | "Admin",
     password: generateRandomPassword(),
+    date_inscription: new Date().toISOString().split("T")[0],
   });
 
-  // Nouveau mot de passe pour la réinitialisation
-  const [newPasswordValue, setNewPasswordValue] = useState<string>("");
-  const [showPasswordMap, setShowPasswordMap] = useState<{ [key: number]: boolean }>({});
+  const [selectedMembre, setSelectedMembre] = useState<Membre | null>(null);
+  const [editMembre, setEditMembre] = useState({
+    nom: "",
+    prenom: "",
+    email: "",
+    date_inscription: "",
+    password: "",
+  });
 
-  // Générer un mot de passe aléatoire dans le formulaire d'ajout
-  const handleGeneratePasswordForNewUser = () => {
-    setNewUser({ ...newUser, password: generateRandomPassword() });
-  };
+  // 👇 Chargement initial des membres depuis l'API
+  useEffect(() => {
+    const fetchMembres = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
 
-  // Soumission : Création d'un utilisateur par l'admin
-  const handleCreateUser = (e: React.FormEvent) => {
-    e.preventDefault();
-    const createdUser: User = {
-      id: Date.now(),
-      fullName: newUser.fullName,
-      email: newUser.email,
-      role: newUser.role,
-      password: newUser.password,
-      status: "Actif",
-      memberNumber: `BIB-${new Date().getFullYear()}-${Math.floor(100 + Math.random() * 900)}`,
+      try {
+        const response = await fetch(`${API_URL}/membres/`, {
+          method: "GET",
+          headers: authHeaders(),
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          throw new Error(errData?.detail || `Erreur ${response.status}`);
+        }
+
+        const data: Membre[] = await response.json();
+        setMembres(data);
+      } catch (err) {
+        setErrorMessage(
+          err instanceof Error ? err.message : "Erreur lors du chargement des membres."
+        );
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    setUsers([createdUser, ...users]);
-    setIsAddModalOpen(false);
-    setNewUser({
-      fullName: "",
-      email: "",
-      role: "Adhérent",
-      password: generateRandomPassword(),
-    });
+    fetchMembres();
+  }, []);
+
+  const handleGeneratePassword = () => {
+    setNewMembre({ ...newMembre, password: generateRandomPassword() });
   };
 
-  // Ouvrir la modal de changement de mot de passe
-  const handleOpenPasswordModal = (user: User) => {
-    setSelectedUserForPassword(user);
-    setNewPasswordValue(generateRandomPassword()); // Propose un mot de passe par défaut
-    setIsPasswordModalOpen(true);
-  };
-
-  // Soumission : Mise à jour du mot de passe par l'admin
-  const handleSaveNewPassword = (e: React.FormEvent) => {
+  const handleCreateMembre = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUserForPassword) return;
+    setIsSubmitting(true);
+    setErrorMessage("");
 
-    setUsers(
-      users.map((u) =>
-        u.id === selectedUserForPassword.id ? { ...u, password: newPasswordValue } : u
-      )
-    );
+    try {
+      const response = await fetch(`${API_URL}/membres/`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(newMembre),
+      });
 
-    alert(`Le mot de passe de ${selectedUserForPassword.fullName} a été mis à jour avec succès : ${newPasswordValue}`);
-    setIsPasswordModalOpen(false);
-    setSelectedUserForPassword(null);
-  };
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.detail || `Erreur ${response.status}`);
+      }
 
-  // Basculer l'affichage du mot de passe dans le tableau
-  const toggleShowPassword = (id: number) => {
-    setShowPasswordMap((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  // Supprimer un utilisateur
-  const handleDeleteUser = (id: number) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cet utilisateur ?")) {
-      setUsers(users.filter((u) => u.id !== id));
+      const createdMembre: Membre = await response.json();
+      setMembres([createdMembre, ...membres]);
+      setIsAddModalOpen(false);
+      setNewMembre({
+        nom: "",
+        prenom: "",
+        email: "",
+        password: generateRandomPassword(),
+        date_inscription: new Date().toISOString().split("T")[0],
+      });
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Erreur lors de la création du membre.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Filtrage
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.memberNumber.toLowerCase().includes(searchTerm.toLowerCase());
+  const handleOpenEditModal = (membre: Membre) => {
+    setSelectedMembre(membre);
+    setEditMembre({
+      nom: membre.nom,
+      prenom: membre.prenom,
+      email: membre.email,
+      date_inscription: membre.date_inscription,
+      password: "",
+    });
+    setErrorMessage("");
+    setIsEditModalOpen(true);
+  };
 
-    const matchesRole = roleFilter === "Tous" || user.role === roleFilter;
+  const handleUpdateMembre = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMembre) return;
 
-    return matchesSearch && matchesRole;
-  });
+    setIsSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const payload: Record<string, string> = {
+        nom: editMembre.nom,
+        prenom: editMembre.prenom,
+        email: editMembre.email,
+        date_inscription: editMembre.date_inscription,
+      };
+      if (editMembre.password.trim() !== "") {
+        payload.password = editMembre.password;
+      }
+
+      const response = await fetch(`${API_URL}/membres/${selectedMembre.id_membre}`, {
+        method: "PUT",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.detail || `Erreur ${response.status}`);
+      }
+
+      const updatedMembre: Membre = await response.json();
+
+      setMembres(
+        membres.map((m) => (m.id_membre === updatedMembre.id_membre ? updatedMembre : m))
+      );
+      setIsEditModalOpen(false);
+      setSelectedMembre(null);
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : "Erreur lors de la modification du membre.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteMembre = async (id: number) => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce membre ?")) return;
+
+    try {
+      const response = await fetch(`${API_URL}/membres/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.detail || `Erreur ${response.status}`);
+      }
+
+      setMembres(membres.filter((m) => m.id_membre !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Erreur lors de la suppression du membre.");
+    }
+  };
+
+  const filteredMembres = membres.filter(
+    (m) =>
+      m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="admin-users">
-      {/* HEADER */}
       <header className="admin-users__header">
         <div>
-          <h1 className="admin-users__title">Gestion des utilisateurs</h1>
-          <p className="admin-users__subtitle">
-            Créez des comptes, attribuez des mots de passe et gérez les accès
-          </p>
+          <h1 className="admin-users__title">Gestion des membres</h1>
+          <p className="admin-users__subtitle">Créez des comptes et attribuez des mots de passe</p>
         </div>
         <button className="btn btn--primary" onClick={() => setIsAddModalOpen(true)}>
-          <PlusIcon /> Créer un utilisateur
+          <PlusIcon /> Créer un membre
         </button>
       </header>
 
-      {/* FILTRES & RECHERCHE */}
       <div className="admin-users__toolbar">
         <div className="search-box">
           <SearchIcon />
           <input
             type="text"
-            placeholder="Rechercher par nom, email ou numéro..."
+            placeholder="Rechercher par nom, prénom ou email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        <select
-          className="role-select"
-          value={roleFilter}
-          onChange={(e) => setRoleFilter(e.target.value)}
-        >
-          <option value="Tous">Tous les rôles</option>
-          <option value="Adhérent">Adhérent</option>
-          <option value="Bibliothécaire">Bibliothécaire</option>
-          <option value="Admin">Admin</option>
-        </select>
       </div>
 
-      {/* TABLEAU DES UTILISATEURS */}
+      {errorMessage && !isAddModalOpen && !isEditModalOpen && (
+        <p className="error-text">{errorMessage}</p>
+      )}
+
       <div className="admin-users__table-container">
         <table className="admin-users__table">
           <thead>
             <tr>
-              <th>Utilisateur</th>
-              <th>Matricule</th>
-              <th>Rôle</th>
-              <th>Mot de passe (Admin)</th>
-              <th>Statut</th>
+              <th>Nom</th>
+              <th>Prénom</th>
+              <th>Email</th>
+              <th>Date d'inscription</th>
               <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="user-info-cell">
-                      <span className="user-name">{user.fullName}</span>
-                      <span className="user-email">{user.email}</span>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="member-number">{user.memberNumber}</span>
-                  </td>
-                  <td>
-                    <span className={`role-badge role-badge--${user.role.toLowerCase()}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="password-cell">
-                      <span className="password-text">
-                        {showPasswordMap[user.id] ? user.password : "••••••••••••"}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-eye"
-                        onClick={() => toggleShowPassword(user.id)}
-                        title={showPasswordMap[user.id] ? "Masquer" : "Afficher"}
-                      >
-                        {showPasswordMap[user.id] ? <EyeOffIcon /> : <EyeIcon />}
-                      </button>
-                    </div>
-                  </td>
-                  <td>
-                    <span className={`status-badge status-badge--${user.status.toLowerCase()}`}>
-                      {user.status}
-                    </span>
-                  </td>
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="empty-state">Chargement...</td>
+              </tr>
+            ) : filteredMembres.length > 0 ? (
+              filteredMembres.map((membre) => (
+                <tr key={membre.id_membre}>
+                  <td>{membre.nom}</td>
+                  <td>{membre.prenom}</td>
+                  <td>{membre.email}</td>
+                  <td>{membre.date_inscription}</td>
                   <td>
                     <div className="actions-cell">
                       <button
-                        className="btn-icon btn-icon--key"
-                        onClick={() => handleOpenPasswordModal(user)}
-                        title="Changer le mot de passe"
+                        className="btn-icon btn-icon--edit"
+                        onClick={() => handleOpenEditModal(membre)}
+                        title="Modifier le membre"
                       >
-                        <KeyIcon />
+                      <EditIcon />
                       </button>
                       <button
                         className="btn-icon btn-icon--delete"
-                        onClick={() => handleDeleteUser(user.id)}
-                        title="Supprimer l'utilisateur"
+                        onClick={() => handleDeleteMembre(membre.id_membre)}
+                        title="Supprimer le membre"
                       >
                         <TrashIcon />
                       </button>
@@ -291,99 +314,83 @@ export default function AdminUsers() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} className="empty-state">
-                  Aucun utilisateur trouvé.
-                </td>
+                <td colSpan={5} className="empty-state">Aucun membre trouvé.</td>
               </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* MODAL 1 : CRÉATION D'UTILISATEUR (AVEC MOT DE PASSE DÉFINI PAR L'ADMIN) */}
       {isAddModalOpen && (
         <div className="modal-overlay" onClick={() => setIsAddModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Créer un nouvel utilisateur</h2>
+              <h2>Créer un nouveau membre</h2>
               <button className="modal-close" onClick={() => setIsAddModalOpen(false)}>
                 <CloseIcon />
               </button>
             </div>
 
-            <form onSubmit={handleCreateUser} className="modal-form">
+            <form onSubmit={handleCreateMembre} className="modal-form">
+              {errorMessage && <p className="error-text">{errorMessage}</p>}
+
               <div className="form-group">
-                <label>Nom complet</label>
+                <label>Nom</label>
                 <input
-                  type="text"
-                  required
-                  placeholder="ex: Jean Dupont"
-                  value={newUser.fullName}
-                  onChange={(e) => setNewUser({ ...newUser, fullName: e.target.value })}
+                  type="text" required placeholder="ex: Dupont"
+                  value={newMembre.nom}
+                  onChange={(e) => setNewMembre({ ...newMembre, nom: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Prénom</label>
+                <input
+                  type="text" required placeholder="ex: Jean"
+                  value={newMembre.prenom}
+                  onChange={(e) => setNewMembre({ ...newMembre, prenom: e.target.value })}
                 />
               </div>
 
               <div className="form-group">
                 <label>Adresse e-mail</label>
                 <input
-                  type="email"
-                  required
-                  placeholder="ex: jean.dupont@example.com"
-                  value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  type="email" required placeholder="ex: jean.dupont@example.com"
+                  value={newMembre.email}
+                  onChange={(e) => setNewMembre({ ...newMembre, email: e.target.value })}
                 />
               </div>
 
               <div className="form-group">
-                <label>Rôle</label>
-                <select
-                  value={newUser.role}
-                  onChange={(e) =>
-                    setNewUser({
-                      ...newUser,
-                      role: e.target.value as "Adhérent" | "Bibliothécaire" | "Admin",
-                    })
-                  }
-                >
-                  <option value="Adhérent">Adhérent</option>
-                  <option value="Bibliothécaire">Bibliothécaire</option>
-                  <option value="Admin">Administrateur</option>
-                </select>
+                <label>Date d'inscription</label>
+                <input
+                  type="date" required
+                  value={newMembre.date_inscription}
+                  onChange={(e) => setNewMembre({ ...newMembre, date_inscription: e.target.value })}
+                />
               </div>
 
-              {/* SECTION MOT DE PASSE ADMIN */}
               <div className="form-group highlight-box">
-                <label>Mot de passe attribué par l'Admin</label>
+                <label>Mot de passe attribué</label>
                 <div className="input-with-button">
                   <input
-                    type="text"
-                    required
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    type="text" required
+                    value={newMembre.password}
+                    onChange={(e) => setNewMembre({ ...newMembre, password: e.target.value })}
                   />
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    onClick={handleGeneratePasswordForNewUser}
-                  >
+                  <button type="button" className="btn btn--secondary btn--sm" onClick={handleGeneratePassword}>
                     Générer
                   </button>
                 </div>
-                <small className="help-text">
-                  Transmettez ce mot de passe à l'utilisateur lors de la création de son compte.
-                </small>
+                <small className="help-text">Transmettez ce mot de passe au membre.</small>
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setIsAddModalOpen(false)}
-                >
+                <button type="button" className="btn btn--secondary" onClick={() => setIsAddModalOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn btn--primary">
-                  Créer l'utilisateur
+                <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
+                  {isSubmitting ? "Création..." : "Créer le membre"}
                 </button>
               </div>
             </form>
@@ -391,51 +398,83 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* MODAL 2 : CHANGER LE MOT DE PASSE D'UN UTILISATEUR EXISTANT */}
-      {isPasswordModalOpen && selectedUserForPassword && (
-        <div className="modal-overlay" onClick={() => setIsPasswordModalOpen(false)}>
+      {isEditModalOpen && selectedMembre && (
+        <div className="modal-overlay" onClick={() => setIsEditModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Réinitialiser le mot de passe</h2>
-              <button className="modal-close" onClick={() => setIsPasswordModalOpen(false)}>
+              <h2>Modifier le membre</h2>
+              <button className="modal-close" onClick={() => setIsEditModalOpen(false)}>
                 <CloseIcon />
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewPassword} className="modal-form">
-              <p className="modal-description">
-                Vous modifiez le mot de passe de : <strong>{selectedUserForPassword.fullName}</strong> ({selectedUserForPassword.email})
-              </p>
+            <form onSubmit={handleUpdateMembre} className="modal-form">
+              {errorMessage && <p className="error-text">{errorMessage}</p>}
+
+              <div className="form-group">
+                <label>Nom</label>
+                <input
+                  type="text" required
+                  value={editMembre.nom}
+                  onChange={(e) => setEditMembre({ ...editMembre, nom: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Prénom</label>
+                <input
+                  type="text" required
+                  value={editMembre.prenom}
+                  onChange={(e) => setEditMembre({ ...editMembre, prenom: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Adresse e-mail</label>
+                <input
+                  type="email" required
+                  value={editMembre.email}
+                  onChange={(e) => setEditMembre({ ...editMembre, email: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Date d'inscription</label>
+                <input
+                  type="date" required
+                  value={editMembre.date_inscription}
+                  onChange={(e) => setEditMembre({ ...editMembre, date_inscription: e.target.value })}
+                />
+              </div>
 
               <div className="form-group highlight-box">
-                <label>Nouveau mot de passe attribué</label>
+                <label>Nouveau mot de passe (optionnel)</label>
                 <div className="input-with-button">
                   <input
                     type="text"
-                    required
-                    value={newPasswordValue}
-                    onChange={(e) => setNewPasswordValue(e.target.value)}
+                    placeholder="Laisser vide pour ne pas changer"
+                    value={editMembre.password}
+                    onChange={(e) => setEditMembre({ ...editMembre, password: e.target.value })}
                   />
                   <button
                     type="button"
                     className="btn btn--secondary btn--sm"
-                    onClick={() => setNewPasswordValue(generateRandomPassword())}
+                    onClick={() => setEditMembre({ ...editMembre, password: generateRandomPassword() })}
                   >
                     Générer
                   </button>
                 </div>
+                <small className="help-text">
+                  Laisse ce champ vide si tu ne veux pas changer le mot de passe.
+                </small>
               </div>
 
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn--secondary"
-                  onClick={() => setIsPasswordModalOpen(false)}
-                >
+                <button type="button" className="btn btn--secondary" onClick={() => setIsEditModalOpen(false)}>
                   Annuler
                 </button>
-                <button type="submit" className="btn btn--primary">
-                  Enregistrer le mot de passe
+                <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
+                  {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
                 </button>
               </div>
             </form>

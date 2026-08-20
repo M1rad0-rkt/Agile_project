@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session
 from app.security import hash_password
+from sqlalchemy.exc import IntegrityError
+from fastapi import HTTPException
 
 from app.models.membre import Membre
 from app.schemas.membre import MembreCreate, MembreUpdate
@@ -16,9 +18,13 @@ def create_membre(db: Session, membre: MembreCreate):
     )
 
     db.add(nouveau_membre)
-    db.commit()
-    db.refresh(nouveau_membre)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Un membre avec cet email existe déjà.")
 
+    db.refresh(nouveau_membre)
     return nouveau_membre
 
 
