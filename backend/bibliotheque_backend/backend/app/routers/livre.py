@@ -9,7 +9,9 @@ from app.crud.livre import (
     get_livres,
     get_livre,
     delete_livre,
-    update_livre
+    update_livre,
+    rechercher_livres,
+    get_livres_disponibles
 )
 
 router = APIRouter(
@@ -40,6 +42,21 @@ def liste_livres(
     db: Session = Depends(get_db)
 ):
     return get_livres(db)
+
+
+@router.get("/recherche")
+def rechercher(
+    q: str,
+    db: Session = Depends(get_db)
+):
+    return rechercher_livres(db, q)
+
+
+@router.get("/disponibles")
+def livres_disponibles(
+    db: Session = Depends(get_db)
+):
+    return get_livres_disponibles(db)
 
 
 @router.get("/{id_livre}", response_model=LivreResponse)

@@ -1,14 +1,21 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.crud.emprunt import create_emprunt
+from app.crud.emprunt import (
+    create_emprunt,
+    get_mes_emprunts,
+    retourner_emprunt,
+    get_tous_les_emprunts
+)
+
 from app.schemas.emprunt import (
     EmpruntCreate,
     EmpruntResponse
 )
 from app.security import (
     get_current_membre,
-    get_db
+    get_db,
+    require_admin
 )
 
 
@@ -33,3 +40,35 @@ def emprunter_livre(
         membre.id_membre,
         emprunt.id_livre
     )
+
+
+@router.get("/mes-emprunts")
+def mes_emprunts(
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return get_mes_emprunts(
+        db,
+        membre.id_membre
+    )
+
+
+@router.post("/{id_emprunt}/retour")
+def retour_livre(
+    id_emprunt: int,
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return retourner_emprunt(
+        db,
+        id_emprunt,
+        membre.id_membre
+    )
+
+
+@router.get("/")
+def tous_les_emprunts(
+    db: Session = Depends(get_db),
+    admin=Depends(require_admin)
+):
+    return get_tous_les_emprunts(db)

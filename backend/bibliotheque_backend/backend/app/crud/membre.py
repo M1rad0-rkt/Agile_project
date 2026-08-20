@@ -1,6 +1,5 @@
 from sqlalchemy.orm import Session
 from app.security import hash_password
-from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException
 
 from app.models.membre import Membre
@@ -18,13 +17,9 @@ def create_membre(db: Session, membre: MembreCreate):
     )
 
     db.add(nouveau_membre)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(status_code=400, detail="Un membre avec cet email existe déjà.")
-
+    db.commit()
     db.refresh(nouveau_membre)
+
     return nouveau_membre
 
 
@@ -75,5 +70,34 @@ def delete_membre(db: Session, id_membre: int):
     if membre:
         db.delete(membre)
         db.commit()
+
+    return membre
+
+
+def changer_statut_membre(
+    db: Session,
+    id_membre: int,
+    statut: str
+):
+    membre = db.query(Membre).filter(
+        Membre.id_membre == id_membre
+    ).first()
+
+    if membre is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Membre non trouvé"
+        )
+
+    if statut not in ["actif", "bloque"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Statut invalide. Utilisez 'actif' ou 'bloque'"
+        )
+
+    membre.statut = statut
+
+    db.commit()
+    db.refresh(membre)
 
     return membre

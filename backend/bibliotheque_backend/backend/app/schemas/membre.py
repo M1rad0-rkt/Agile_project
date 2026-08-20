@@ -24,6 +24,11 @@ class MembreResponse(BaseModel):
     prenom: str
     email: str
     date_inscription: date
+    statut: str
 
     class Config:
         from_attributes = True
+
+
+class MembreStatut(BaseModel):
+    statut: str

@@ -60,3 +60,17 @@ def update_livre(db: Session, id_livre: int, livre_data: LivreUpdate):
     db.refresh(livre)
 
     return livre
+
+
+def rechercher_livres(db: Session, recherche: str):
+    return db.query(Livre).filter(
+        (Livre.titre.ilike(f"%{recherche}%")) |
+        (Livre.auteur.ilike(f"%{recherche}%")) |
+        (Livre.categorie.ilike(f"%{recherche}%"))
+    ).all()
+
+
+def get_livres_disponibles(db: Session):
+    return db.query(Livre).filter(
+        Livre.exemplaire > 0
+    ).all()
