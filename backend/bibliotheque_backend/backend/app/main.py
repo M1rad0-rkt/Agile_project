@@ -15,13 +15,11 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Gestion Bibliothèque API")
 
-
 # Connection au frontend vite 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Vite (par défaut)
-        "http://localhost:3000",  # Create React App (par défaut)
     ],
     allow_credentials=True,
     allow_methods=["*"],
