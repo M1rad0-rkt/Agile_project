@@ -1,8 +1,39 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./AdminEmprunt.css";
 
-// 1. DÉFINITION DU TYPE BORROW (Prêt / Emprunt)
-export interface Borrow {
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const API_URL = "http://localhost:8000";
+
+// ============================================================
+// TYPES
+// ============================================================
+
+interface Livre {
+  id_livre: number;
+  titre: string;
+  auteur: string;
+  categorie: string;
+  exemplaire: number;
+}
+
+interface Membre {
+  id_membre: number;
+  nom: string;
+  prenom: string;
+  email: string;
+}
+
+interface EmpruntResponse {
+  id_emprunt?: number;
+  id_membre: number;
+  id_livre: number;
+  date_emprunt: string;
+}
+
+interface Borrow {
   id: number;
   bookTitle: string;
   userName: string;
@@ -12,171 +43,555 @@ export interface Borrow {
   status: "En cours" | "En retard" | "Rendu";
 }
 
-// --- ICÔNES SVG ---
+// ============================================================
+// ICÔNES
+// ============================================================
+
 const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <circle cx="11" cy="11" r="8" />
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
 const PlusIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
 const CheckIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
-const TrashIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <polyline points="3 6 5 6 21 6" />
-    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-  </svg>
-);
-
 const CloseIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
-// Données fictives initiales
-const INITIAL_BORROWS: Borrow[] = [
-  { id: 1, bookTitle: "Le Petit Prince", userName: "Alice Martin", borrowDate: "2026-08-01", dueDate: "2026-08-15", status: "En retard" },
-  { id: 2, bookTitle: "1984", userName: "Thomas Dubois", borrowDate: "2026-08-10", dueDate: "2026-08-24", status: "En cours" },
-  { id: 3, bookTitle: "L'Étranger", userName: "Emma Moreau", borrowDate: "2026-07-15", dueDate: "2026-07-29", returnDate: "2026-07-28", status: "Rendu" },
-  { id: 4, bookTitle: "Dune", userName: "Lucas Petit", borrowDate: "2026-08-05", dueDate: "2026-08-19", status: "En cours" },
-  { id: 5, bookTitle: "Fondation", userName: "Sophie Bernard", borrowDate: "2026-07-01", dueDate: "2026-07-15", returnDate: "2026-07-14", status: "Rendu" },
-];
+// ============================================================
+// HELPERS
+// ============================================================
 
-const STATUS_FILTERS = ["Tous", "En cours", "En retard", "Rendu"];
+function getToken(): string | null {
+  return (
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("token") ||
+    localStorage.getItem("accessToken")
+  );
+}
+
+function getAuthHeaders(): HeadersInit {
+  const token = getToken();
+
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+function formatDate(dateString: string): string {
+  if (!dateString) return "-";
+
+  const date = new Date(dateString);
+
+  if (Number.isNaN(date.getTime())) {
+    return dateString;
+  }
+
+  return date.toLocaleDateString("fr-FR");
+}
+
+function calculateDueDate(dateEmprunt: string): string {
+  const date = new Date(dateEmprunt);
+
+  date.setDate(date.getDate() + 14);
+
+  return date.toISOString().split("T")[0];
+}
+
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 export default function AdminEmprunt() {
-  const [borrows, setBorrows] = useState<Borrow[]>(INITIAL_BORROWS);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("Tous");
+  // ----------------------------------------------------------
+  // DATA
+  // ----------------------------------------------------------
 
-  // État de la modal
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [livres, setLivres] = useState<Livre[]>([]);
+  const [membres, setMembres] = useState<Membre[]>([]);
+  const [borrows, setBorrows] = useState<Borrow[]>([]);
 
-  // Formulaire local pour un nouveau prêt
-  const [formData, setFormData] = useState({
-    bookTitle: "",
-    userName: "",
-    borrowDate: new Date().toISOString().split("T")[0],
-    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0], // +14 jours par défaut
-  });
+  // ----------------------------------------------------------
+  // UI
+  // ----------------------------------------------------------
 
-  // Ouvrir modal pour nouvel emprunt
-  const handleOpenAddModal = () => {
-    setFormData({
-      bookTitle: "",
-      userName: "",
-      borrowDate: new Date().toISOString().split("T")[0],
-      dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-    });
-    setIsModalOpen(true);
-  };
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("Tous");
 
-  // Enregistrer un nouveau prêt
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const newBorrow: Borrow = {
-      id: Date.now(),
-      ...formData,
-      status: "En cours",
-    };
+  const [loading, setLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
 
-    setBorrows([newBorrow, ...borrows]);
-    setIsModalOpen(false);
-  };
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // Marquer un emprunt comme rendu
-  const handleReturn = (id: number) => {
-    const today = new Date().toISOString().split("T")[0];
-    setBorrows(
-      borrows.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              returnDate: today,
-              status: "Rendu",
-            }
-          : b
-      )
-    );
-  };
+  // ----------------------------------------------------------
+  // FORMULAIRE
+  // ----------------------------------------------------------
 
-  // Suppression d'un enregistrement
-  const handleDelete = (id: number) => {
-    if (window.confirm("Voulez-vous supprimer cet enregistrement d'emprunt ?")) {
-      setBorrows(borrows.filter((b) => b.id !== id));
+  const [selectedBookId, setSelectedBookId] = useState<number | "">("");
+
+  // ==========================================================
+  // CHARGEMENT DES LIVRES
+  // ==========================================================
+
+  const fetchLivres = async () => {
+    try {
+      const response = await fetch(`${API_URL}/livres/`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Erreur lors du chargement des livres (${response.status})`
+        );
+      }
+
+      const data: Livre[] = await response.json();
+
+      setLivres(data);
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        "Impossible de récupérer les livres depuis le serveur."
+      );
     }
   };
 
-  // Filtrage des emprunts
+  // ==========================================================
+  // CHARGEMENT DES MEMBRES
+  // ==========================================================
+
+  const fetchMembres = async () => {
+    try {
+      const response = await fetch(`${API_URL}/membres/`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Erreur lors du chargement des membres (${response.status})`
+        );
+      }
+
+      const data: Membre[] = await response.json();
+
+      setMembres(data);
+    } catch (err) {
+      console.error(err);
+
+      /*
+       * Ce n'est pas bloquant pour la création d'un emprunt,
+       * car ton backend utilise automatiquement le membre
+       * connecté grâce à get_current_membre().
+       */
+    }
+  };
+
+  // ==========================================================
+  // CHARGEMENT INITIAL
+  // ==========================================================
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      setError("");
+
+      await Promise.all([
+        fetchLivres(),
+        fetchMembres(),
+      ]);
+
+      setLoading(false);
+    };
+
+    loadData();
+  }, []);
+
+  // ==========================================================
+  // MEMBRE CONNECTÉ
+  // ==========================================================
+
+  /*
+   * Ton backend ne demande PAS id_membre dans le POST.
+   *
+   * Il récupère automatiquement :
+   *
+   * membre=Depends(get_current_membre)
+   *
+   * Donc le frontend n'a pas besoin d'envoyer l'id du membre.
+   */
+
+  const currentMember = useMemo(() => {
+    /*
+     * Si ton application stocke déjà l'utilisateur connecté
+     * dans localStorage sous "user", on essaie de le récupérer.
+     */
+
+    try {
+      const storedUser = localStorage.getItem("user");
+
+      if (!storedUser) {
+        return null;
+      }
+
+      return JSON.parse(storedUser) as Membre;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ==========================================================
+  // OUVRIR MODAL
+  // ==========================================================
+
+  const handleOpenAddModal = () => {
+    setError("");
+    setSuccess("");
+
+    setSelectedBookId("");
+
+    setIsModalOpen(true);
+  };
+
+  // ==========================================================
+  // FERMER MODAL
+  // ==========================================================
+
+  const handleCloseModal = () => {
+    if (creating) return;
+
+    setIsModalOpen(false);
+    setSelectedBookId("");
+  };
+
+  // ==========================================================
+  // CRÉER EMPRUNT
+  // ==========================================================
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    if (selectedBookId === "") {
+      setError("Veuillez sélectionner un livre.");
+      return;
+    }
+
+    const livre = livres.find(
+      (item) => item.id_livre === Number(selectedBookId)
+    );
+
+    if (!livre) {
+      setError("Livre introuvable.");
+      return;
+    }
+
+    if (livre.exemplaire <= 0) {
+      setError("Ce livre n'est plus disponible.");
+      return;
+    }
+
+    const token = getToken();
+
+    if (!token) {
+      setError(
+        "Vous devez être connecté pour enregistrer un emprunt."
+      );
+      return;
+    }
+
+    try {
+      setCreating(true);
+
+      /*
+       * IMPORTANT :
+       *
+       * Ton backend attend uniquement :
+       *
+       * {
+       *   "id_livre": 1
+       * }
+       *
+       * Le membre est récupéré automatiquement côté backend.
+       */
+
+      const response = await fetch(`${API_URL}/emprunts/`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          id_livre: Number(selectedBookId),
+        }),
+      });
+
+      if (!response.ok) {
+        let message = "Impossible de créer l'emprunt.";
+
+        try {
+          const errorData = await response.json();
+
+          if (errorData.detail) {
+            if (typeof errorData.detail === "string") {
+              message = errorData.detail;
+            } else {
+              message = JSON.stringify(errorData.detail);
+            }
+          }
+        } catch {
+          // réponse non JSON
+        }
+
+        throw new Error(message);
+      }
+
+      const data: EmpruntResponse = await response.json();
+
+      // Date réelle donnée par le backend
+      const borrowDate =
+        data.date_emprunt ||
+        new Date().toISOString().split("T")[0];
+
+      const dueDate = calculateDueDate(borrowDate);
+
+      /*
+       * Comme ton backend ne possède actuellement pas
+       * de GET /emprunts/, on ajoute l'emprunt créé
+       * directement dans l'affichage local.
+       */
+
+      const userName = currentMember
+        ? `${currentMember.prenom} ${currentMember.nom}`
+        : "Membre connecté";
+
+      const newBorrow: Borrow = {
+        id: data.id_emprunt ?? Date.now(),
+        bookTitle: livre.titre,
+        userName,
+        borrowDate,
+        dueDate,
+        status: "En cours",
+      };
+
+      setBorrows((previous) => [newBorrow, ...previous]);
+
+      // Mise à jour locale de la disponibilité
+      setLivres((previous) =>
+        previous.map((item) =>
+          item.id_livre === livre.id_livre
+            ? {
+                ...item,
+                exemplaire: Math.max(0, item.exemplaire - 1),
+              }
+            : item
+        )
+      );
+
+      setSuccess("L'emprunt a été enregistré avec succès.");
+
+      setIsModalOpen(false);
+      setSelectedBookId("");
+    } catch (err) {
+      console.error(err);
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // ==========================================================
+  // FILTRAGE
+  // ==========================================================
+
   const filteredBorrows = borrows.filter((borrow) => {
+    const search = searchTerm.toLowerCase();
+
     const matchesSearch =
-      borrow.bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      borrow.userName.toLowerCase().includes(searchTerm.toLowerCase());
+      borrow.bookTitle.toLowerCase().includes(search) ||
+      borrow.userName.toLowerCase().includes(search);
 
     const matchesStatus =
-      selectedStatus === "Tous" || borrow.status === selectedStatus;
+      selectedStatus === "Tous" ||
+      borrow.status === selectedStatus;
 
     return matchesSearch && matchesStatus;
   });
 
+  // ==========================================================
+  // RENDU
+  // ==========================================================
+
   return (
     <div className="admin-borrows">
-      {/* EN-TÊTE */}
+
+      {/* =====================================================
+          HEADER
+      ====================================================== */}
+
       <header className="admin-borrows__header">
         <div>
-          <h1 className="admin-borrows__title">Suivi des emprunts</h1>
+          <h1 className="admin-borrows__title">
+            Suivi des emprunts
+          </h1>
+
           <p className="admin-borrows__subtitle">
-            Gérez les emprunts actifs, enregistrez les retours et suivez les retards
+            Gérez les emprunts actifs et enregistrez les nouveaux prêts
           </p>
         </div>
-        <button className="btn btn--primary" onClick={handleOpenAddModal}>
-          <PlusIcon /> Enregistrer un prêt
+
+        <button
+          className="btn btn--primary"
+          onClick={handleOpenAddModal}
+        >
+          <PlusIcon />
+          Enregistrer un prêt
         </button>
       </header>
 
-      {/* BARRE DE FILTRES ET RECHERCHE */}
+      {/* =====================================================
+          MESSAGES
+      ====================================================== */}
+
+      {error && (
+        <div
+          style={{
+            marginBottom: "15px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            backgroundColor: "#fee2e2",
+            color: "#b91c1c",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {success && (
+        <div
+          style={{
+            marginBottom: "15px",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            backgroundColor: "#dcfce7",
+            color: "#15803d",
+          }}
+        >
+          {success}
+        </div>
+      )}
+
+      {/* =====================================================
+          TOOLBAR
+      ====================================================== */}
+
       <div className="admin-borrows__toolbar">
+
         <div className="search-box">
           <SearchIcon />
+
           <input
             type="text"
             placeholder="Rechercher par livre ou emprunteur..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) =>
+              setSearchTerm(e.target.value)
+            }
           />
         </div>
 
         <select
           className="status-select"
           value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
+          onChange={(e) =>
+            setSelectedStatus(e.target.value)
+          }
         >
-          {STATUS_FILTERS.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
+          <option value="Tous">
+            Tous
+          </option>
+
+          <option value="En cours">
+            En cours
+          </option>
+
+          <option value="En retard">
+            En retard
+          </option>
+
+          <option value="Rendu">
+            Rendu
+          </option>
         </select>
       </div>
 
-      {/* TABLEAU DES EMPRUNTS */}
+      {/* =====================================================
+          TABLEAU
+      ====================================================== */}
+
       <div className="admin-borrows__table-container">
+
         <table className="admin-borrows__table">
+
           <thead>
             <tr>
               <th>Livre</th>
@@ -184,156 +599,304 @@ export default function AdminEmprunt() {
               <th>Date de prêt</th>
               <th>Retour prévu</th>
               <th>Statut</th>
-              <th className="text-right">Actions</th>
+              <th className="text-right">
+                Actions
+              </th>
             </tr>
           </thead>
+
           <tbody>
-            {filteredBorrows.length > 0 ? (
+
+            {loading ? (
+
+              <tr>
+                <td
+                  colSpan={6}
+                  className="empty-state"
+                >
+                  Chargement...
+                </td>
+              </tr>
+
+            ) : filteredBorrows.length > 0 ? (
+
               filteredBorrows.map((borrow) => {
+
                 let statusClass = "badge--info";
-                if (borrow.status === "Rendu") statusClass = "badge--success";
-                if (borrow.status === "En retard") statusClass = "badge--danger";
+
+                if (borrow.status === "Rendu") {
+                  statusClass = "badge--success";
+                }
+
+                if (borrow.status === "En retard") {
+                  statusClass = "badge--danger";
+                }
 
                 return (
                   <tr key={borrow.id}>
+
                     <td>
-                      <span className="book-title">{borrow.bookTitle}</span>
+                      <span className="book-title">
+                        {borrow.bookTitle}
+                      </span>
                     </td>
+
                     <td>
-                      <span className="user-name">{borrow.userName}</span>
+                      <span className="user-name">
+                        {borrow.userName}
+                      </span>
                     </td>
-                    <td>{borrow.borrowDate}</td>
+
+                    <td>
+                      {formatDate(borrow.borrowDate)}
+                    </td>
+
                     <td>
                       <span
                         className={
-                          borrow.status === "En retard" ? "date-overdue" : ""
+                          borrow.status === "En retard"
+                            ? "date-overdue"
+                            : ""
                         }
                       >
-                        {borrow.dueDate}
+                        {formatDate(borrow.dueDate)}
                       </span>
                     </td>
+
                     <td>
-                      <span className={`badge ${statusClass}`}>
+                      <span
+                        className={`badge ${statusClass}`}
+                      >
                         {borrow.status}
                       </span>
                     </td>
+
                     <td>
                       <div className="actions-cell">
+
                         {borrow.status !== "Rendu" && (
                           <button
                             className="btn-icon btn-icon--success"
-                            onClick={() => handleReturn(borrow.id)}
                             title="Marquer comme rendu"
+                            disabled
                           >
                             <CheckIcon />
                           </button>
                         )}
-                        <button
-                          className="btn-icon btn-icon--delete"
-                          onClick={() => handleDelete(borrow.id)}
-                          title="Supprimer l'historique"
+
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            color: "#888",
+                          }}
                         >
-                          <TrashIcon />
-                        </button>
+                          API retour non disponible
+                        </span>
+
                       </div>
                     </td>
+
                   </tr>
                 );
               })
+
             ) : (
+
               <tr>
-                <td colSpan={6} className="empty-state">
-                  Aucun emprunt ne correspond à votre recherche.
+                <td
+                  colSpan={6}
+                  className="empty-state"
+                >
+                  Aucun emprunt trouvé.
                 </td>
               </tr>
+
             )}
+
           </tbody>
+
         </table>
+
       </div>
 
-      {/* MODAL NOUVEAU PRÊT */}
+      {/* =====================================================
+          MODAL
+      ====================================================== */}
+
       {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+
+        <div
+          className="modal-overlay"
+          onClick={handleCloseModal}
+        >
+
+          <div
+            className="modal-content"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
+
+            {/* HEADER */}
+
             <div className="modal-header">
-              <h2>Enregistrer un nouveau prêt</h2>
+
+              <h2>
+                Enregistrer un nouveau prêt
+              </h2>
+
               <button
                 className="modal-close"
-                onClick={() => setIsModalOpen(false)}
+                onClick={handleCloseModal}
+                disabled={creating}
               >
                 <CloseIcon />
               </button>
+
             </div>
 
-            <form onSubmit={handleSubmit} className="modal-form">
-              <div className="form-group">
-                <label>Titre du livre</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.bookTitle}
-                  onChange={(e) =>
-                    setFormData({ ...formData, bookTitle: e.target.value })
-                  }
-                  placeholder="ex: Le Petit Prince"
-                />
-              </div>
+            {/* FORMULAIRE */}
+
+            <form
+              onSubmit={handleSubmit}
+              className="modal-form"
+            >
+
+              {/* LIVRE */}
 
               <div className="form-group">
-                <label>Nom de l'emprunteur</label>
+
+                <label>
+                  Livre
+                </label>
+
+                <select
+                  required
+                  value={selectedBookId}
+                  onChange={(e) => {
+
+                    const value = e.target.value;
+
+                    setSelectedBookId(
+                      value === ""
+                        ? ""
+                        : Number(value)
+                    );
+                  }}
+                >
+
+                  <option value="">
+                    -- Sélectionner un livre --
+                  </option>
+
+                  {livres.map((livre) => (
+
+                    <option
+                      key={livre.id_livre}
+                      value={livre.id_livre}
+                      disabled={livre.exemplaire <= 0}
+                    >
+                      {livre.titre}
+                      {" — "}
+                      {livre.exemplaire} disponible(s)
+                    </option>
+
+                  ))}
+
+                </select>
+
+              </div>
+
+              {/* MEMBRE */}
+
+              <div className="form-group">
+
+                <label>
+                  Emprunteur
+                </label>
+
                 <input
                   type="text"
-                  required
-                  value={formData.userName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, userName: e.target.value })
+                  value={
+                    currentMember
+                      ? `${currentMember.prenom} ${currentMember.nom}`
+                      : "Membre connecté"
                   }
-                  placeholder="ex: Alice Martin"
+                  disabled
                 />
+
+                <small>
+                  Le membre est automatiquement déterminé
+                  par le compte connecté.
+                </small>
+
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Date de prêt</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.borrowDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, borrowDate: e.target.value })
-                    }
-                  />
-                </div>
+              {/* DATE */}
 
-                <div className="form-group">
-                  <label>Date de retour prévue</label>
-                  <input
-                    type="date"
-                    required
-                    value={formData.dueDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dueDate: e.target.value })
-                    }
-                  />
-                </div>
+              <div className="form-group">
+
+                <label>
+                  Date du prêt
+                </label>
+
+                <input
+                  type="text"
+                  value="Définie automatiquement par le serveur"
+                  disabled
+                />
+
               </div>
+
+              {/* INFO BACKEND */}
+
+              <div
+                style={{
+                  padding: "12px",
+                  borderRadius: "8px",
+                  background: "#f3f4f6",
+                  fontSize: "13px",
+                  color: "#4b5563",
+                  marginTop: "10px",
+                }}
+              >
+                La date d'emprunt est définie automatiquement
+                par le backend avec la date du jour.
+              </div>
+
+              {/* ACTIONS */}
 
               <div className="modal-actions">
+
                 <button
                   type="button"
                   className="btn btn--secondary"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={handleCloseModal}
+                  disabled={creating}
                 >
                   Annuler
                 </button>
-                <button type="submit" className="btn btn--primary">
-                  Valider le prêt
+
+                <button
+                  type="submit"
+                  className="btn btn--primary"
+                  disabled={creating}
+                >
+                  {creating
+                    ? "Enregistrement..."
+                    : "Valider le prêt"}
                 </button>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   );
 }

@@ -1,382 +1,1047 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "./AdminBook.css";
 
-// 1. DÉFINITION DU TYPE BOOK (Résout les erreurs TypeScript / soulignements rouges)
+// ============================================================
+// TYPE LIVRE
+// ============================================================
+
 export interface Book {
-  id: number;
-  title: string;
-  author: string;
-  isbn: string;
-  category: string;
-  total: number;
-  available: number;
+  id_livre: number;
+  titre: string;
+  auteur: string;
+  categorie: string;
+  exemplaire: number;
 }
 
-// --- ICÔNES SVG ---
+// ============================================================
+// CONFIGURATION API
+// ============================================================
+
+const API_URL = "http://localhost:8000";
+
+// ============================================================
+// ICÔNES
+// ============================================================
+
 const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <circle cx="11" cy="11" r="8" />
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
 const PlusIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <line x1="12" y1="5" x2="12" y2="19" />
     <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 
 const EditIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
   </svg>
 );
 
 const TrashIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <polyline points="3 6 5 6 21 6" />
     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 
 const CloseIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
-// Données fictives initiales
-const INITIAL_BOOKS: Book[] = [
-  { id: 1, title: "Le Petit Prince", author: "Antoine de Saint-Exupéry", isbn: "978-2070612758", category: "Roman", total: 5, available: 3 },
-  { id: 2, title: "1984", author: "George Orwell", isbn: "978-2070368228", category: "Science-Fiction", total: 4, available: 0 },
-  { id: 3, title: "L'Étranger", author: "Albert Camus", isbn: "978-2070360024", category: "Classique", total: 6, available: 4 },
-  { id: 4, title: "Fondation", author: "Isaac Asimov", isbn: "978-2207249123", category: "Science-Fiction", total: 3, available: 1 },
-  { id: 5, title: "Dune", author: "Frank Herbert", isbn: "978-2266283038", category: "Science-Fiction", total: 5, available: 5 },
+// ============================================================
+// CATÉGORIES
+// ============================================================
+
+const CATEGORIES = [
+  "Toutes",
+  "Roman",
+  "Science-Fiction",
+  "Classique",
+  "Histoire",
+  "Essai",
 ];
 
-const CATEGORIES = ["Toutes", "Roman", "Science-Fiction", "Classique", "Histoire", "Essai"];
+// ============================================================
+// COMPOSANT
+// ============================================================
 
 export default function AdminBooks() {
-  const [books, setBooks] = useState<Book[]>(INITIAL_BOOKS);
-  const [searchTerm, setSearchTerm] = useState<string>("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("Toutes");
+  // ----------------------------------------------------------
+  // STATES
+  // ----------------------------------------------------------
 
-  // État de la modal
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [currentBook, setCurrentBook] = useState<Book | null>(null);
+  const [books, setBooks] = useState<Book[]>([]);
 
-  // Formulaire local
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const [selectedCategory, setSelectedCategory] =
+    useState("Toutes");
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState("");
+
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
+
+  const [currentBook, setCurrentBook] =
+    useState<Book | null>(null);
+
   const [formData, setFormData] = useState({
-    title: "",
-    author: "",
-    isbn: "",
-    category: "Roman",
-    total: 1,
-    available: 1,
+    titre: "",
+    auteur: "",
+    categorie: "Roman",
+    exemplaire: 1,
   });
 
-  // Ouvrir modal pour ajout
+  // ==========================================================
+  // RÉCUPÉRER LE TOKEN
+  // ==========================================================
+
+  const getToken = (): string | null => {
+    /*
+     * Selon ton système de login, le token peut être
+     * enregistré sous différents noms.
+     *
+     * On teste plusieurs possibilités.
+     */
+
+    return (
+      localStorage.getItem("access_token") ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("jwt") ||
+      localStorage.getItem("accessToken")
+    );
+  };
+
+  // ==========================================================
+  // HEADERS AUTHENTIFICATION
+  // ==========================================================
+
+  const getAuthHeaders = () => {
+    const token = getToken();
+
+    return {
+      "Content-Type": "application/json",
+      ...(token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {}),
+    };
+  };
+
+  // ==========================================================
+  // RÉCUPÉRER LES LIVRES
+  // ==========================================================
+
+  const fetchBooks = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const response = await fetch(
+        `${API_URL}/livres/`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Erreur HTTP ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+
+      setBooks(data);
+    } catch (error) {
+      console.error(
+        "Erreur récupération des livres :",
+        error
+      );
+
+      setError(
+        "Impossible de récupérer les livres depuis le serveur."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // CHARGEMENT INITIAL
+  // ==========================================================
+
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  // ==========================================================
+  // OUVRIR MODAL AJOUT
+  // ==========================================================
+
   const handleOpenAddModal = () => {
     setCurrentBook(null);
+
     setFormData({
-      title: "",
-      author: "",
-      isbn: "",
-      category: "Roman",
-      total: 1,
-      available: 1,
+      titre: "",
+      auteur: "",
+      categorie: "Roman",
+      exemplaire: 1,
     });
+
+    setError("");
+
     setIsModalOpen(true);
   };
 
-  // Ouvrir modal pour édition
+  // ==========================================================
+  // OUVRIR MODAL MODIFICATION
+  // ==========================================================
+
   const handleOpenEditModal = (book: Book) => {
     setCurrentBook(book);
+
     setFormData({
-      title: book.title,
-      author: book.author,
-      isbn: book.isbn,
-      category: book.category,
-      total: book.total,
-      available: book.available,
+      titre: book.titre,
+      auteur: book.auteur,
+      categorie: book.categorie,
+      exemplaire: book.exemplaire,
     });
+
+    setError("");
+
     setIsModalOpen(true);
   };
 
-  // Soumission du formulaire (Ajout ou Édition)
-  const handleSubmit = (e: React.FormEvent) => {
+  // ==========================================================
+  // FERMER MODAL
+  // ==========================================================
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setCurrentBook(null);
+
+    setFormData({
+      titre: "",
+      auteur: "",
+      categorie: "Roman",
+      exemplaire: 1,
+    });
+  };
+
+  // ==========================================================
+  // CRÉER / MODIFIER
+  // ==========================================================
+
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
-    const totalNum = Number(formData.total);
-    const availableNum = Number(formData.available);
+    setError("");
 
-    if (currentBook) {
-      // Édition
-      setBooks(
-        books.map((b) =>
-          b.id === currentBook.id
-            ? {
-                ...b,
-                ...formData,
-                total: totalNum,
-                available: availableNum,
-              }
-            : b
-        )
-      );
-    } else {
-      // Ajout
-      const newBook: Book = {
-        id: Date.now(),
-        ...formData,
-        total: totalNum,
-        available: availableNum,
+    try {
+      const token = getToken();
+
+      // ------------------------------------------------------
+      // Vérification du token pour les opérations Admin
+      // ------------------------------------------------------
+
+      if (!token) {
+        setError(
+          "Vous devez être connecté en tant qu'administrateur."
+        );
+
+        return;
+      }
+
+      const body = {
+        titre: formData.titre.trim(),
+        auteur: formData.auteur.trim(),
+        categorie: formData.categorie,
+        exemplaire: Number(formData.exemplaire),
       };
-      setBooks([newBook, ...books]);
+
+      // ------------------------------------------------------
+      // MODIFICATION
+      // ------------------------------------------------------
+
+      if (currentBook) {
+        const response = await fetch(
+          `${API_URL}/livres/${currentBook.id_livre}`,
+          {
+            method: "PUT",
+
+            headers: getAuthHeaders(),
+
+            body: JSON.stringify(body),
+          }
+        );
+
+        if (response.status === 401) {
+          setError(
+            "Non autorisé. Votre session Admin est invalide ou expirée."
+          );
+
+          return;
+        }
+
+        if (response.status === 403) {
+          setError(
+            "Accès refusé. Vous devez être administrateur."
+          );
+
+          return;
+        }
+
+        if (!response.ok) {
+          const errorData =
+            await response.json().catch(() => null);
+
+          console.error(
+            "Erreur modification :",
+            errorData
+          );
+
+          throw new Error(
+            `Erreur HTTP ${response.status}`
+          );
+        }
+
+        await fetchBooks();
+
+        alert("Livre modifié avec succès !");
+
+        handleCloseModal();
+
+        return;
+      }
+
+      // ------------------------------------------------------
+      // CRÉATION
+      // ------------------------------------------------------
+
+      const response = await fetch(
+        `${API_URL}/livres/`,
+        {
+          method: "POST",
+
+          headers: getAuthHeaders(),
+
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (response.status === 401) {
+        setError(
+          "Non autorisé. Votre session Admin est invalide ou expirée."
+        );
+
+        return;
+      }
+
+      if (response.status === 403) {
+        setError(
+          "Accès refusé. Vous devez être administrateur."
+        );
+
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData =
+          await response.json().catch(() => null);
+
+        console.error(
+          "Erreur création :",
+          errorData
+        );
+
+        throw new Error(
+          `Erreur HTTP ${response.status}`
+        );
+      }
+
+      await fetchBooks();
+
+      alert("Livre créé avec succès !");
+
+      handleCloseModal();
+    } catch (error) {
+      console.error(
+        "Erreur lors de l'enregistrement :",
+        error
+      );
+
+      setError(
+        "Une erreur est survenue lors de l'enregistrement du livre."
+      );
     }
-    setIsModalOpen(false);
   };
 
-  // Suppression
-  const handleDelete = (id: number) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce livre ?")) {
-      setBooks(books.filter((b) => b.id !== id));
+  // ==========================================================
+  // SUPPRIMER
+  // ==========================================================
+
+  const handleDelete = async (
+    id_livre: number
+  ) => {
+    const confirmation = window.confirm(
+      "Êtes-vous sûr de vouloir supprimer ce livre ?"
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    setError("");
+
+    try {
+      const token = getToken();
+
+      if (!token) {
+        setError(
+          "Vous devez être connecté en tant qu'administrateur."
+        );
+
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/livres/${id_livre}`,
+        {
+          method: "DELETE",
+
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        setError(
+          "Non autorisé. Votre session Admin est invalide ou expirée."
+        );
+
+        return;
+      }
+
+      if (response.status === 403) {
+        setError(
+          "Accès refusé. Vous devez être administrateur."
+        );
+
+        return;
+      }
+
+      if (!response.ok) {
+        const errorData =
+          await response.json().catch(() => null);
+
+        console.error(
+          "Erreur suppression :",
+          errorData
+        );
+
+        throw new Error(
+          `Erreur HTTP ${response.status}`
+        );
+      }
+
+      await fetchBooks();
+
+      alert("Livre supprimé avec succès !");
+    } catch (error) {
+      console.error(
+        "Erreur suppression :",
+        error
+      );
+
+      setError(
+        "Impossible de supprimer le livre."
+      );
     }
   };
 
-  // Filtrage des livres
-  const filteredBooks = books.filter((book) => {
-    const matchesSearch =
-      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      book.isbn.includes(searchTerm);
+  // ==========================================================
+  // FILTRAGE
+  // ==========================================================
 
-    const matchesCategory =
-      selectedCategory === "Toutes" || book.category === selectedCategory;
+  const filteredBooks = books.filter(
+    (book) => {
+      const search =
+        searchTerm.toLowerCase();
 
-    return matchesSearch && matchesCategory;
-  });
+      const matchesSearch =
+        book.titre
+          .toLowerCase()
+          .includes(search) ||
+        book.auteur
+          .toLowerCase()
+          .includes(search) ||
+        book.categorie
+          .toLowerCase()
+          .includes(search);
+
+      const matchesCategory =
+        selectedCategory === "Toutes" ||
+        book.categorie ===
+          selectedCategory;
+
+      return (
+        matchesSearch &&
+        matchesCategory
+      );
+    }
+  );
+
+  // ==========================================================
+  // RENDU
+  // ==========================================================
 
   return (
     <div className="admin-books">
-      {/* EN-TÊTE */}
+
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <header className="admin-books__header">
+
         <div>
-          <h1 className="admin-books__title">Gestion des livres</h1>
+          <h1 className="admin-books__title">
+            Gestion des livres
+          </h1>
+
           <p className="admin-books__subtitle">
-            Gérez le catalogue, suivez la disponibilité et ajoutez des ouvrages
+            Gérez le catalogue, suivez la
+            disponibilité et ajoutez des ouvrages
           </p>
         </div>
-        <button className="btn btn--primary" onClick={handleOpenAddModal}>
-          <PlusIcon /> Ajouter un livre
+
+        <button
+          className="btn btn--primary"
+          onClick={handleOpenAddModal}
+        >
+          <PlusIcon />
+          Ajouter un livre
         </button>
+
       </header>
 
-      {/* BARRE DE FILTRES ET RECHERCHE */}
+      {/* ======================================================
+          MESSAGE ERREUR
+      ====================================================== */}
+
+      {error && (
+        <div
+          style={{
+            backgroundColor: "#fee2e2",
+            color: "#b91c1c",
+            padding: "12px 16px",
+            borderRadius: "8px",
+            marginBottom: "20px",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* ======================================================
+          TOOLBAR
+      ====================================================== */}
+
       <div className="admin-books__toolbar">
+
         <div className="search-box">
+
           <SearchIcon />
+
           <input
             type="text"
-            placeholder="Rechercher par titre, auteur, ISBN..."
+            placeholder="Rechercher par titre, auteur, catégorie..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) =>
+              setSearchTerm(e.target.value)
+            }
           />
+
         </div>
 
         <select
           className="category-select"
           value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
+          onChange={(e) =>
+            setSelectedCategory(
+              e.target.value
+            )
+          }
         >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
+
+          {CATEGORIES.map(
+            (category) => (
+              <option
+                key={category}
+                value={category}
+              >
+                {category}
+              </option>
+            )
+          )}
+
         </select>
+
       </div>
 
-      {/* TABLEAU DES LIVRES */}
+      {/* ======================================================
+          TABLEAU
+      ====================================================== */}
+
       <div className="admin-books__table-container">
+
         <table className="admin-books__table">
+
           <thead>
+
             <tr>
-              <th>Titre & Auteur</th>
-              <th>ISBN</th>
-              <th>Catégorie</th>
-              <th>Exemplaires (Dispo / Total)</th>
-              <th>Statut</th>
-              <th className="text-right">Actions</th>
+
+              <th>
+                Titre & Auteur
+              </th>
+
+              <th>
+                Catégorie
+              </th>
+
+              <th>
+                Exemplaires
+              </th>
+
+              <th>
+                Statut
+              </th>
+
+              <th className="text-right">
+                Actions
+              </th>
+
             </tr>
+
           </thead>
+
           <tbody>
-            {filteredBooks.length > 0 ? (
-              filteredBooks.map((book) => {
-                let statusClass = "badge--success";
-                let statusText = "Disponible";
 
-                if (book.available === 0) {
-                  statusClass = "badge--danger";
-                  statusText = "Épuisé";
-                } else if (book.available === 1) {
-                  statusClass = "badge--warning";
-                  statusText = "Stock limité";
-                }
+            {/* CHARGEMENT */}
 
-                return (
-                  <tr key={book.id}>
-                    <td>
-                      <div className="book-info">
-                        <span className="book-info__title">{book.title}</span>
-                        <span className="book-info__author">{book.author}</span>
-                      </div>
-                    </td>
-                    <td><code className="isbn-code">{book.isbn}</code></td>
-                    <td><span className="category-tag">{book.category}</span></td>
-                    <td>
-                      <strong>{book.available}</strong> / {book.total}
-                    </td>
-                    <td>
-                      <span className={`badge ${statusClass}`}>{statusText}</span>
-                    </td>
-                    <td>
-                      <div className="actions-cell">
-                        <button
-                          className="btn-icon btn-icon--edit"
-                          onClick={() => handleOpenEditModal(book)}
-                          title="Modifier"
-                        >
-                          <EditIcon />
-                        </button>
-                        <button
-                          className="btn-icon btn-icon--delete"
-                          onClick={() => handleDelete(book.id)}
-                          title="Supprimer"
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
+            {loading ? (
+
               <tr>
-                <td colSpan={6} className="empty-state">
-                  Aucun livre ne correspond à votre recherche.
+
+                <td
+                  colSpan={5}
+                  className="empty-state"
+                >
+                  Chargement des livres...
                 </td>
+
               </tr>
+
+            ) : filteredBooks.length > 0 ? (
+
+              filteredBooks.map(
+                (book) => {
+
+                  let statusClass =
+                    "badge--success";
+
+                  let statusText =
+                    "Disponible";
+
+                  if (
+                    book.exemplaire === 0
+                  ) {
+                    statusClass =
+                      "badge--danger";
+
+                    statusText =
+                      "Épuisé";
+                  } else if (
+                    book.exemplaire === 1
+                  ) {
+                    statusClass =
+                      "badge--warning";
+
+                    statusText =
+                      "Stock limité";
+                  }
+
+                  return (
+                    <tr
+                      key={
+                        book.id_livre
+                      }
+                    >
+
+                      {/* TITRE / AUTEUR */}
+
+                      <td>
+
+                        <div className="book-info">
+
+                          <span className="book-info__title">
+                            {book.titre}
+                          </span>
+
+                          <span className="book-info__author">
+                            {book.auteur}
+                          </span>
+
+                        </div>
+
+                      </td>
+
+                      {/* CATÉGORIE */}
+
+                      <td>
+
+                        <span className="category-tag">
+                          {book.categorie}
+                        </span>
+
+                      </td>
+
+                      {/* EXEMPLAIRES */}
+
+                      <td>
+
+                        <strong>
+                          {book.exemplaire}
+                        </strong>
+
+                      </td>
+
+                      {/* STATUT */}
+
+                      <td>
+
+                        <span
+                          className={`badge ${statusClass}`}
+                        >
+                          {statusText}
+                        </span>
+
+                      </td>
+
+                      {/* ACTIONS */}
+
+                      <td>
+
+                        <div className="actions-cell">
+
+                          <button
+                            className="btn-icon btn-icon--edit"
+                            onClick={() =>
+                              handleOpenEditModal(
+                                book
+                              )
+                            }
+                            title="Modifier"
+                          >
+                            <EditIcon />
+                          </button>
+
+                          <button
+                            className="btn-icon btn-icon--delete"
+                            onClick={() =>
+                              handleDelete(
+                                book.id_livre
+                              )
+                            }
+                            title="Supprimer"
+                          >
+                            <TrashIcon />
+                          </button>
+
+                        </div>
+
+                      </td>
+
+                    </tr>
+                  );
+                }
+              )
+
+            ) : (
+
+              <tr>
+
+                <td
+                  colSpan={5}
+                  className="empty-state"
+                >
+                  Aucun livre trouvé.
+                </td>
+
+              </tr>
+
             )}
+
           </tbody>
+
         </table>
+
       </div>
 
-      {/* MODAL AJOUT / ÉDITION */}
+      {/* ======================================================
+          MODAL
+      ====================================================== */}
+
       {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+
+        <div
+          className="modal-overlay"
+          onClick={
+            handleCloseModal
+          }
+        >
+
+          <div
+            className="modal-content"
+            onClick={(e) =>
+              e.stopPropagation()
+            }
+          >
+
+            {/* HEADER */}
+
             <div className="modal-header">
-              <h2>{currentBook ? "Modifier le livre" : "Ajouter un livre"}</h2>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}>
+
+              <h2>
+                {currentBook
+                  ? "Modifier le livre"
+                  : "Ajouter un livre"}
+              </h2>
+
+              <button
+                className="modal-close"
+                onClick={
+                  handleCloseModal
+                }
+              >
                 <CloseIcon />
               </button>
+
             </div>
 
-            <form onSubmit={handleSubmit} className="modal-form">
+            {/* FORMULAIRE */}
+
+            <form
+              onSubmit={handleSubmit}
+              className="modal-form"
+            >
+
+              {/* TITRE */}
+
               <div className="form-group">
-                <label>Titre de l'ouvrage</label>
+
+                <label>
+                  Titre de l'ouvrage
+                </label>
+
                 <input
                   type="text"
                   required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  value={
+                    formData.titre
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      titre:
+                        e.target.value,
+                    })
+                  }
                   placeholder="ex: Le Petit Prince"
                 />
+
               </div>
 
+              {/* AUTEUR */}
+
               <div className="form-group">
-                <label>Auteur</label>
+
+                <label>
+                  Auteur
+                </label>
+
                 <input
                   type="text"
                   required
-                  value={formData.author}
-                  onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                  value={
+                    formData.auteur
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      auteur:
+                        e.target.value,
+                    })
+                  }
                   placeholder="ex: Antoine de Saint-Exupéry"
                 />
+
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>ISBN</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.isbn}
-                    onChange={(e) => setFormData({ ...formData, isbn: e.target.value })}
-                    placeholder="978-..."
-                  />
-                </div>
+              {/* CATÉGORIE */}
 
-                <div className="form-group">
-                  <label>Catégorie</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    {CATEGORIES.filter((c) => c !== "Toutes").map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="form-group">
+
+                <label>
+                  Catégorie
+                </label>
+
+                <select
+                  value={
+                    formData.categorie
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      categorie:
+                        e.target.value,
+                    })
+                  }
+                >
+
+                  {CATEGORIES
+                    .filter(
+                      (category) =>
+                        category !==
+                        "Toutes"
+                    )
+                    .map(
+                      (category) => (
+                        <option
+                          key={category}
+                          value={
+                            category
+                          }
+                        >
+                          {category}
+                        </option>
+                      )
+                    )}
+
+                </select>
+
               </div>
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Exemplaires Totaux</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={formData.total}
-                    onChange={(e) => setFormData({ ...formData, total: Number(e.target.value) })}
-                  />
-                </div>
+              {/* EXEMPLAIRES */}
 
-                <div className="form-group">
-                  <label>Exemplaires Disponibles</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max={formData.total}
-                    required
-                    value={formData.available}
-                    onChange={(e) => setFormData({ ...formData, available: Number(e.target.value) })}
-                  />
-                </div>
+              <div className="form-group">
+
+                <label>
+                  Nombre d'exemplaires
+                </label>
+
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={
+                    formData.exemplaire
+                  }
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      exemplaire:
+                        Number(
+                          e.target.value
+                        ),
+                    })
+                  }
+                />
+
               </div>
+
+              {/* BOUTONS */}
 
               <div className="modal-actions">
+
                 <button
                   type="button"
                   className="btn btn--secondary"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={
+                    handleCloseModal
+                  }
                 >
                   Annuler
                 </button>
-                <button type="submit" className="btn btn--primary">
-                  {currentBook ? "Enregistrer" : "Créer le livre"}
+
+                <button
+                  type="submit"
+                  className="btn btn--primary"
+                >
+                  {currentBook
+                    ? "Enregistrer"
+                    : "Créer le livre"}
                 </button>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   );
 }
