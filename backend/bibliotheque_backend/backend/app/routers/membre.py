@@ -11,7 +11,9 @@ from app.schemas.membre import (
     MembreCreate,
     MembreUpdate,
     MembreResponse,
-    MembreStatut
+    MembreStatut,
+    MembreUpdate,
+    MembrePasswordUpdate
 )
 
 from app.crud.membre import (
@@ -20,7 +22,10 @@ from app.crud.membre import (
     get_membre,
     update_membre,
     delete_membre,
-    changer_statut_membre
+    changer_statut_membre,
+    modifier_profil,
+    changer_password,
+    get_dashboard_membre
 )
 
 
@@ -61,6 +66,17 @@ def mon_profil(
     membre=Depends(get_current_membre)
 ):
     return membre
+
+
+@router.get("/dashboard")
+def dashboard_membre(
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return get_dashboard_membre(
+        db,
+        membre.id_membre
+    )
 
 
 @router.put("/{id_membre}")
@@ -115,4 +131,30 @@ def modifier_statut(
         db,
         id_membre,
         data.statut
+    )
+
+
+@router.patch("/me", response_model=MembreResponse)
+def modifier_mon_profil(
+    donnees: MembreUpdate,
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return modifier_profil(
+        db,
+        membre,
+        donnees
+    )
+
+
+@router.patch("/me/password")
+def modifier_mon_password(
+    donnees: MembrePasswordUpdate,
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return changer_password(
+        db,
+        membre,
+        donnees
     )

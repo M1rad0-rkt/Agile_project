@@ -32,3 +32,12 @@ class MembreResponse(BaseModel):
 
 class MembreStatut(BaseModel):
     statut: str
+
+class MembreUpdate(BaseModel):
+    nom: str | None = None
+    prenom: str | None = None
+    email: str | None = None
+
+class MembrePasswordUpdate(BaseModel):
+    ancien_password: str
+    nouveau_password: str

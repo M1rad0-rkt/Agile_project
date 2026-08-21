@@ -1,9 +1,11 @@
 from sqlalchemy.orm import Session
 from app.security import hash_password
 from fastapi import HTTPException
+from app.security import verify_password, hash_password
 
 from app.models.membre import Membre
 from app.schemas.membre import MembreCreate, MembreUpdate
+from app.crud.emprunt import get_mes_emprunts
 
 
 def create_membre(db: Session, membre: MembreCreate):
@@ -101,3 +103,115 @@ def changer_statut_membre(
     db.refresh(membre)
 
     return membre
+
+
+def modifier_profil(
+    db: Session,
+    membre,
+    donnees
+):
+    membre_db = db.query(Membre).filter(
+        Membre.id_membre == membre.id_membre
+    ).first()
+
+    if membre_db is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Membre non trouvé"
+        )
+
+    if donnees.nom is not None:
+        membre_db.nom = donnees.nom
+
+    if donnees.prenom is not None:
+        membre_db.prenom = donnees.prenom
+
+    if donnees.email is not None:
+        membre_db.email = donnees.email
+
+    db.commit()
+    db.refresh(membre_db)
+
+    return membre_db
+
+
+def changer_password(
+    db: Session,
+    membre,
+    donnees
+):
+    membre_db = db.query(Membre).filter(
+        Membre.id_membre == membre.id_membre
+    ).first()
+
+    if membre_db is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Membre non trouvé"
+        )
+
+    if not verify_password(
+        donnees.ancien_password,
+        membre_db.password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Ancien mot de passe incorrect"
+        )
+
+    membre_db.password = hash_password(
+        donnees.nouveau_password
+    )
+
+    db.commit()
+
+    return {
+        "message": "Mot de passe modifié avec succès"
+    }
+
+
+def get_dashboard_membre(
+    db: Session,
+    id_membre: int
+):
+    emprunts = get_mes_emprunts(db, id_membre)
+
+    dernier_emprunt = None
+
+    if emprunts:
+        dernier_emprunt = max(
+            emprunts,
+            key=lambda e: e.date_emprunt
+        )
+
+    return {
+        "total_emprunts": len(emprunts),
+
+        "emprunts_en_cours": sum(
+            1 for e in emprunts
+            if e.statut == "en_cours"
+        ),
+
+        "emprunts_en_retard": sum(
+            1 for e in emprunts
+            if e.statut == "en_retard"
+        ),
+
+        "livres_retournes": sum(
+            1 for e in emprunts
+            if e.statut == "retourne"
+        ),
+
+        "dernier_emprunt": (
+            {
+                "id_emprunt": dernier_emprunt.id_emprunt,
+                "id_livre": dernier_emprunt.id_livre,
+                "date_emprunt": dernier_emprunt.date_emprunt,
+                "date_limite": dernier_emprunt.date_limite,
+                "date_retour": dernier_emprunt.date_retour,
+                "statut": dernier_emprunt.statut
+            }
+            if dernier_emprunt
+            else None
+        )
+    }

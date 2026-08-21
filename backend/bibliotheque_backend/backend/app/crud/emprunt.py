@@ -68,9 +68,16 @@ def get_mes_emprunts(
     db: Session,
     id_membre: int
 ):
-    return db.query(Emprunt).filter(
+    emprunts = db.query(Emprunt).filter(
         Emprunt.id_membre == id_membre
     ).all()
+
+    for emprunt in emprunts:
+        mettre_a_jour_statut(emprunt)
+
+    db.commit()
+
+    return emprunts
 
 
 def retourner_emprunt(
@@ -89,7 +96,7 @@ def retourner_emprunt(
             detail="Emprunt non trouvé"
         )
 
-    if emprunt.statut != "en_cours":
+    if emprunt.statut == "retourne":
         raise HTTPException(
             status_code=400,
             detail="Ce livre a déjà été retourné"
@@ -117,16 +124,21 @@ def retourner_emprunt(
 
 
 def get_tous_les_emprunts(db: Session):
-    return db.query(Emprunt).all()
+    emprunts = db.query(Emprunt).all()
+
+    for emprunt in emprunts:
+        mettre_a_jour_statut(emprunt)
+
+    db.commit()
+
+    return emprunts
 
 
-def calculer_retard(emprunt):
-    if emprunt.statut == "retourne":
-        return 0
+def mettre_a_jour_statut(emprunt):
+    if (
+        emprunt.statut == "en_cours"
+        and emprunt.date_limite < date.today()
+    ):
+        emprunt.statut = "en_retard"
 
-    aujourd_hui = date.today()
-
-    if aujourd_hui <= emprunt.date_limite:
-        return 0
-
-    return (aujourd_hui - emprunt.date_limite).days
+    return emprunt
