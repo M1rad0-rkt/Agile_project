@@ -44,7 +44,7 @@ def liste_livres(
     return get_livres(db)
 
 
-@router.get("/recherche")
+@router.get("/recherche", response_model=list[LivreResponse])
 def rechercher(
     q: str,
     db: Session = Depends(get_db)
@@ -52,7 +52,7 @@ def rechercher(
     return rechercher_livres(db, q)
 
 
-@router.get("/disponibles")
+@router.get("/disponibles", response_model=list[LivreResponse])
 def livres_disponibles(
     db: Session = Depends(get_db)
 ):
