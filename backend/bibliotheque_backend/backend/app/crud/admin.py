@@ -2,6 +2,10 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
+from app.models.membre import Membre
+from app.models.livre import Livre
+from app.models.emprunt import Emprunt
+
 from app.models.admin import Admin
 from app.security import hash_password,verify_password
 
@@ -56,11 +60,9 @@ def modifier_profil_admin(
 
 
 def get_dashboard_admin(db: Session):
-    from app.models.membre import Membre
-    from app.models.livre import Livre
-    from app.models.emprunt import Emprunt
 
     total_membres = db.query(Membre).count()
+
     total_livres = db.query(Livre).count()
 
     livres_disponibles = db.query(Livre).filter(
@@ -77,13 +79,31 @@ def get_dashboard_admin(db: Session):
         Emprunt.statut == "en_retard"
     ).count()
 
+    dernier_emprunt = db.query(Emprunt).order_by(
+        Emprunt.date_emprunt.desc()
+    ).first()
+
+    dernier_emprunt_data = None
+
+    if dernier_emprunt:
+        dernier_emprunt_data = {
+            "id_emprunt": dernier_emprunt.id_emprunt,
+            "id_membre": dernier_emprunt.id_membre,
+            "id_livre": dernier_emprunt.id_livre,
+            "date_emprunt": dernier_emprunt.date_emprunt,
+            "date_limite": dernier_emprunt.date_limite,
+            "date_retour": dernier_emprunt.date_retour,
+            "statut": dernier_emprunt.statut
+        }
+
     return {
         "total_membres": total_membres,
         "total_livres": total_livres,
         "livres_disponibles": livres_disponibles,
         "total_emprunts": total_emprunts,
         "emprunts_en_cours": emprunts_en_cours,
-        "emprunts_en_retard": emprunts_en_retard
+        "emprunts_en_retard": emprunts_en_retard,
+        "dernier_emprunt": dernier_emprunt_data
     }
 
 
