@@ -18,3 +18,5 @@ uvicorn==0.52.3
 bcrypt
 python-jose[cryptography]
 python-multipart
+pytest
+httpx

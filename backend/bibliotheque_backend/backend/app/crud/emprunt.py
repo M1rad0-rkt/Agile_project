@@ -64,7 +64,6 @@ def create_emprunt(
     return emprunt
 
 
-
 def get_mes_emprunts(
     db: Session,
     id_membre: int
@@ -143,4 +142,3 @@ def mettre_a_jour_statut(emprunt):
         emprunt.statut = "en_retard"
 
     return emprunt
-

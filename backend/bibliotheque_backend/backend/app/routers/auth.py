@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.database import get_db
 from app.schemas.auth import TokenResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from app.crud.auth import (
@@ -15,15 +15,6 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentification"]
 )
-
-
-def get_db():
-    db = SessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post(
@@ -79,8 +70,3 @@ def login(
         status_code=401,
         detail="Email ou mot de passe incorrect"
     )
-
-    return {
-        "access_token": token,
-        "token_type": "bearer"
-    }

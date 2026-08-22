@@ -43,16 +43,15 @@ def emprunter_livre(
 
 
 @router.get("/mes-emprunts",response_model=list[EmpruntResponse])
-
 def mes_emprunts(
     db: Session = Depends(get_db),
     membre=Depends(get_current_membre)
 ):
-    
     return get_mes_emprunts(
         db,
         membre.id_membre
     )
+
 
 @router.post("/{id_emprunt}/retour",response_model=EmpruntResponse)
 def retour_livre(
@@ -73,4 +72,3 @@ def tous_les_emprunts(
     admin=Depends(require_admin)
 ):
     return get_tous_les_emprunts(db)
-
