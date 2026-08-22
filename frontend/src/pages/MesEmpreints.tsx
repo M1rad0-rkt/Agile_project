@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./MesEmpreints.css";
-import { useNavigation } from "react-router-dom";
 
 // --- ICÔNES SVG ---
 const BookIcon = () => (
@@ -26,68 +25,128 @@ const RefreshIcon = () => (
   </svg>
 );
 
-// --- DONNÉES FICTIVES INITIALES ---
-const INITIAL_BORROWS = [
-  {
-    id: 1,
-    title: "Le Petit Prince",
-    author: "Antoine de Saint-Exupéry",
-    borrowDate: "10 août 2026",
-    returnDate: "24 août 2026",
-    status: "À rendre bientôt", // "En cours", "À rendre bientôt", "En retard", "Terminé"
+// --- TYPES ---
+interface Livre {
+  id_livre: number;
+  titre: string;
+  auteur: string;
+}
+
+interface EmpruntAPI {
+  id_emprunt: number;
+  id_membre: number;
+  id_livre: number;
+  date_emprunt: string;   // format ISO ex: "2026-08-10"
+  date_retour: string | null;
+  date_limite: string;
+  statut: string;         // "en_cours", "retourne", etc. (valeur brute backend)
+  livre: Livre;
+}
+
+interface Borrow {
+  id: number;
+  title: string;
+  author: string;
+  borrowDate: string;
+  returnDate: string;
+  status: "En cours" | "À rendre bientôt" | "En retard" | "Terminé";
+  extended: boolean;
+}
+
+// --- CONFIG ---
+const API_BASE_URL = "http://localhost:8000";
+
+// --- HELPERS ---
+
+// Formate une date ISO ("2026-08-10") en "10 août 2026"
+function formatDateFr(isoDate: string): string {
+  const date = new Date(isoDate);
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+// Déduit le statut d'affichage à partir des données réelles du backend
+function deriveStatus(emprunt: EmpruntAPI): Borrow["status"] {
+  if (emprunt.date_retour) {
+    return "Terminé";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const limite = new Date(emprunt.date_limite);
+  limite.setHours(0, 0, 0, 0);
+
+  const diffJours = Math.ceil(
+    (limite.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffJours < 0) return "En retard";
+  if (diffJours <= 3) return "À rendre bientôt";
+  return "En cours";
+}
+
+// Convertit une réponse backend en objet utilisable par l'affichage
+function mapEmpruntToBorrow(emprunt: EmpruntAPI): Borrow {
+  return {
+    id: emprunt.id_emprunt,
+    title: emprunt.livre?.titre ?? "Titre inconnu",
+    author: emprunt.livre?.auteur ?? "Auteur inconnu",
+    borrowDate: formatDateFr(emprunt.date_emprunt),
+    returnDate: formatDateFr(emprunt.date_limite),
+    status: deriveStatus(emprunt),
     extended: false,
-  },
-  {
-    id: 2,
-    title: "L'Étranger",
-    author: "Albert Camus",
-    borrowDate: "05 août 2026",
-    returnDate: "28 août 2026",
-    status: "En cours",
-    extended: false,
-  },
-  {
-    id: 3,
-    title: "1984",
-    author: "George Orwell",
-    borrowDate: "15 juillet 2026",
-    returnDate: "01 août 2026",
-    status: "En retard",
-    extended: false,
-  },
-  {
-    id: 4,
-    title: "Les Misérables",
-    author: "Victor Hugo",
-    borrowDate: "01 juin 2026",
-    returnDate: "15 juin 2026",
-    status: "Terminé",
-    extended: false,
-  },
-  {
-    id: 5,
-    title: "Le Comte de Monte-Cristo",
-    author: "Alexandre Dumas",
-    borrowDate: "10 mai 2026",
-    returnDate: "24 mai 2026",
-    status: "Terminé",
-    extended: false,
-  },
-];
+  };
+}
 
 export default function MesEmpreints() {
-
-  const [borrows, setBorrows] = useState(INITIAL_BORROWS);
+  const [borrows, setBorrows] = useState<Borrow[]>([]);
   const [activeTab, setActiveTab] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fonction pour simuler la prolongation de la date d'emprunt (+7 jours)
+  useEffect(() => {
+    fetchEmprunts();
+  }, []);
+
+  const fetchEmprunts = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem("access_token");
+
+      const response = await fetch(`${API_BASE_URL}/emprunts/mes-emprunts`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}`);
+      }
+
+      const data: EmpruntAPI[] = await response.json();
+      setBorrows(data.map(mapEmpruntToBorrow));
+    } catch (err) {
+      console.error("Erreur lors du chargement des emprunts :", err);
+      setError("Impossible de charger vos emprunts. Veuillez réessayer.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Prolongation encore simulée côté front (à connecter à une route backend si elle existe)
   const handleExtend = (id: number) => {
     setBorrows((prev) =>
       prev.map((item) => {
         if (item.id === id) {
           return {
             ...item,
-            returnDate: "07 sept. 2026", // Date prolongée simulée
             status: "En cours",
             extended: true,
           };
@@ -108,6 +167,23 @@ export default function MesEmpreints() {
   // Statistiques rapides
   const countActive = borrows.filter((b) => b.status === "En cours" || b.status === "À rendre bientôt").length;
   const countLate = borrows.filter((b) => b.status === "En retard").length;
+
+  if (loading) {
+    return (
+      <div className="borrows-container">
+        <p>Chargement de vos emprunts...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="borrows-container">
+        <p className="text-danger">{error}</p>
+        <button onClick={fetchEmprunts}>Réessayer</button>
+      </div>
+    );
+  }
 
   return (
     <div className="borrows-container">
