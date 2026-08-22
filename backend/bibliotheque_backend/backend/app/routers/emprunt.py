@@ -41,6 +41,7 @@ def emprunter_livre(
         emprunt.id_livre
     )
 
+
 @router.get("/mes-emprunts",response_model=list[EmpruntResponse])
 
 def mes_emprunts(
