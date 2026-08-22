@@ -13,6 +13,7 @@ class EmpruntResponse(BaseModel):
     id_livre: int
     date_emprunt: date
     date_retour: date | None = None
-
+    statut: str
+    
     class Config:
         from_attributes = True

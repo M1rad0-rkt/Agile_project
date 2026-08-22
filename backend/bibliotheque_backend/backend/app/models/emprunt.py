@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Date, ForeignKey
+from sqlalchemy import Column, Integer, Date, ForeignKey, String
 from app.database import Base
 
 
@@ -27,4 +27,10 @@ class Emprunt(Base):
     date_retour = Column(
         Date,
         nullable=True
+    )
+
+    statut = Column(
+        String,
+        nullable=False,
+        default="en cours"
     )
