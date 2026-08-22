@@ -16,7 +16,6 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Gestion Bibliothèque API")
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -28,13 +27,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 app.include_router(livre_router)
 app.include_router(membre_router)
 app.include_router(emprunt_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
-
-
 
 @app.on_event("startup")
 def startup():

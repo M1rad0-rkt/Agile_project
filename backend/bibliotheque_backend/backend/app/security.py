@@ -17,7 +17,7 @@ oauth2_scheme = OAuth2PasswordBearer(
 )
 
 
-SECRET_KEY = "change-moi-plus-tard"
+SECRET_KEY = "mdbphifgts54i451&zr-ètàç-tut71,kj)"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -114,6 +114,12 @@ def get_current_membre(
 
     if membre is None:
         raise credentials_exception
+
+    if membre.statut != "actif":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Votre compte est bloqué"
+        )
 
     return membre
 

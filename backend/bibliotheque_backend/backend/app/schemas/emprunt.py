@@ -14,6 +14,6 @@ class EmpruntResponse(BaseModel):
     date_emprunt: date
     date_retour: date | None = None
     statut: str
-    
+
     class Config:
         from_attributes = True

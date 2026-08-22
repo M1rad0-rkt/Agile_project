@@ -12,3 +12,4 @@ class Membre(Base):
     email = Column(String, unique=True, nullable=False)
     password = Column(String, nullable=False)
     date_inscription = Column(Date, nullable=False)
+    statut = Column(String,nullable=False,default="actif")

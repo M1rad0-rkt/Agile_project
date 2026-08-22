@@ -30,7 +30,12 @@ class Emprunt(Base):
     )
 
     statut = Column(
-        String,
-        nullable=False,
-        default="en cours"
+        String, 
+        nullable=False, 
+        default="en_cours"
+    )
+
+    date_limite = Column(
+        Date, 
+        nullable=False
     )

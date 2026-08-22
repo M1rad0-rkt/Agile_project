@@ -79,3 +79,8 @@ def login(
         status_code=401,
         detail="Email ou mot de passe incorrect"
     )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }

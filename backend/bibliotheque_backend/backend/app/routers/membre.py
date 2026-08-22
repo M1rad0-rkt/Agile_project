@@ -1,18 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-#  Novonoiko aloha le require admin mandrapahavitanle login
-
 from app.database import SessionLocal
 from app.security import (
     get_current_membre,
-    # require_admin
+    require_admin
 )
 
 from app.schemas.membre import (
     MembreCreate,
     MembreUpdate,
-    MembreResponse
+    MembreResponse,
+    MembreStatut,
+    MembreUpdate,
+    MembrePasswordUpdate
 )
 
 from app.crud.membre import (
@@ -20,7 +21,11 @@ from app.crud.membre import (
     get_membres,
     get_membre,
     update_membre,
-    delete_membre
+    delete_membre,
+    changer_statut_membre,
+    modifier_profil,
+    changer_password,
+    get_dashboard_membre
 )
 
 
@@ -43,7 +48,7 @@ def get_db():
 def ajouter_membre(
     membre: MembreCreate,
     db: Session = Depends(get_db),
-    # admin=Depends(require_admin)
+    admin=Depends(require_admin)
 ):
     return create_membre(db, membre)
 
@@ -51,7 +56,7 @@ def ajouter_membre(
 @router.get("/")
 def liste_membres(
     db: Session = Depends(get_db),
-    # admin=Depends(require_admin)
+    admin=Depends(require_admin)
 ):
     return get_membres(db)
 
@@ -63,12 +68,23 @@ def mon_profil(
     return membre
 
 
+@router.get("/dashboard")
+def dashboard_membre(
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return get_dashboard_membre(
+        db,
+        membre.id_membre
+    )
+
+
 @router.put("/{id_membre}")
 def modifier_membre(
     id_membre: int,
     membre: MembreUpdate,
     db: Session = Depends(get_db),
-    # admin=Depends(require_admin)
+    admin=Depends(require_admin)
 ):
     return update_membre(
         db,
@@ -81,7 +97,7 @@ def modifier_membre(
 def supprimer_membre(
     id_membre: int,
     db: Session = Depends(get_db),
-    # admin=Depends(require_admin)
+    admin=Depends(require_admin)
 ):
     return delete_membre(
         db,
@@ -102,3 +118,43 @@ def detail_membre(
         )
 
     return membre
+
+
+@router.patch("/{id_membre}/statut")
+def modifier_statut(
+    id_membre: int,
+    data: MembreStatut,
+    db: Session = Depends(get_db),
+    admin=Depends(require_admin)
+):
+    return changer_statut_membre(
+        db,
+        id_membre,
+        data.statut
+    )
+
+
+@router.patch("/me", response_model=MembreResponse)
+def modifier_mon_profil(
+    donnees: MembreUpdate,
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return modifier_profil(
+        db,
+        membre,
+        donnees
+    )
+
+
+@router.patch("/me/password")
+def modifier_mon_password(
+    donnees: MembrePasswordUpdate,
+    db: Session = Depends(get_db),
+    membre=Depends(get_current_membre)
+):
+    return changer_password(
+        db,
+        membre,
+        donnees
+    )
